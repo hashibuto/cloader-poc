@@ -10,6 +10,7 @@
 
 const char *SO_MEMFD_NAME = "so_anon_name";
 const int MAX_VIRT_FN_SIZE = 256;
+const char *SHARED_FUNC_NAME = "handle_remote_http_session_rs";
 
 int load_shared_library(char *path, void **buf, long *buf_size) {
   int fd = -1;
@@ -82,7 +83,7 @@ int bind_shared_library(void *shared_lib, long buf_size, void **shared_lib_handl
     goto error;
   }
 
-  void *handle = dlopen(vfname, RTLD_LAZY);
+  void *handle = dlopen(vfname, RTLD_NOW);
   if (handle == NULL) {
     goto error;
   }
@@ -125,7 +126,20 @@ int main(int argc, char *argv[]) {
   }
   printf("shared library has been bound\n");
 
+  int (*handle_remote_http_session_rs)(char *);
+  *(void **) (&handle_remote_http_session_rs) = dlsym(shared_lib_handle, SHARED_FUNC_NAME);
+  if (handle_remote_http_session_rs == NULL) {
+    perror("failed to find function in shared library");
+    goto error;
+  }
+  if (handle_remote_http_session_rs("http://www.test.com") < 0) {
+    perror("call to handle_remote_http_session_rs failed");
+    goto error;
+  }
+  printf("shared object call succeeded\n");
+
   dlclose(shared_lib_handle);
+  shared_lib_handle = NULL;
   free(so_buf);
   so_buf = NULL;
 
